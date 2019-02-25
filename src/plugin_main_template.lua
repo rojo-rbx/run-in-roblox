@@ -50,11 +50,9 @@ local logConnection = LogService.MessageOut:Connect(function(body, messageType)
 	})
 end)
 
-HttpService:PostAsync(SERVER_URL .. "/start", "hi")
-
-require(script.Parent.Main)
-
-HttpService:PostAsync(SERVER_URL .. "/finish", "hi")
+HttpService:PostAsync(SERVER_URL .. "/start", "")
+require(script:GetChildren()[1])
+HttpService:PostAsync(SERVER_URL .. "/finish", "")
 
 heartbeatConnection:Disconnect()
 logConnection:Disconnect()

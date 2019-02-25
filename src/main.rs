@@ -3,23 +3,46 @@ mod message_receiver;
 mod old_stuff;
 
 use std::{
+    collections::HashMap,
+    fs::File,
     path::Path,
     process,
 };
 
+use rbx_dom_weak::{RbxTree, RbxInstanceProperties};
 use log::error;
 use clap::{App, Arg};
 
-fn run_place(path: &Path) {
-    unimplemented!();
+fn run_place(path: &Path, extension: &str) {
+    let mut file = File::open(path)
+        .expect("Couldn't open file");
+
+    let mut tree = RbxTree::new(RbxInstanceProperties {
+        name: String::from("Place"),
+        class_name: String::from("DataModel"),
+        properties: HashMap::new(),
+    });
+    let root_id = tree.get_root_id();
+
+    match extension {
+        "rbxl" => rbx_binary::decode(&mut tree, root_id, &mut file)
+            .expect("Couldn't decode binary place file"),
+        "rbxlx" => rbx_xml::decode(&mut tree, root_id, &mut file)
+            .expect("Couldn't decode XML place file"),
+        _ => unreachable!(),
+    }
+
+    // TODO: Actually use this place
 }
 
-fn run_model(path: &Path) {
-    unimplemented!();
+fn run_model(_path: &Path, _extension: &str) {
+    error!("Models are not yet supported by run-in-roblox.");
+    process::exit(1);
 }
 
-fn run_script(path: &Path) {
-    unimplemented!();
+fn run_script(_path: &Path) {
+    error!("Scripts are not yet supported by run-in-roblox.");
+    process::exit(1);
 }
 
 fn bad_path(path: &Path) -> ! {
@@ -59,8 +82,8 @@ fn main() {
 
     match extension {
         "lua" => run_script(input),
-        "rbxm" | "rbxmx" => run_model(input),
-        "rbxl" | "rbxlx" => run_place(input),
+        "rbxm" | "rbxmx" => run_model(input, extension),
+        "rbxl" | "rbxlx" => run_place(input, extension),
         _ => bad_path(input),
     }
 }

@@ -1,0 +1,6 @@
+#!/bin/sh
+
+set -e
+
+rojo build -o Place.rbxlx
+run-in-roblox Place.rbxlx
