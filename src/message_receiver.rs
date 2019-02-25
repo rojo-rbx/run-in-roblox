@@ -4,6 +4,7 @@ use std::{
     sync::mpsc,
 };
 
+use serde_derive::Deserialize;
 use futures::{
     Future,
     future,
@@ -27,7 +28,24 @@ type HyperResponse = Box<Future<Item = Response<Body>, Error = hyper::Error> + S
 pub enum Message {
     Start,
     Stop,
-    Message(Vec<u8>),
+    Messages(Vec<RobloxMessage>),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type")]
+pub enum RobloxMessage {
+    Output {
+        level: OutputLevel,
+        body: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum OutputLevel {
+    Info,
+    Print,
+    Warning,
+    Error,
 }
 
 #[derive(Debug)]
@@ -65,14 +83,18 @@ impl MessageReceiver {
                             message_tx.send(Message::Stop).unwrap();
                             *response.body_mut() = Body::from("Finished");
                         },
-                        (&Method::POST, "/message") => {
+                        (&Method::POST, "/messages") => {
                             let message_tx = message_tx.clone();
 
                             let future = request
                                 .into_body()
                                 .concat2()
                                 .map(move |chunk| {
-                                    message_tx.send(Message::Message(chunk.to_vec())).unwrap();
+                                    let source = chunk.to_vec();
+                                    let messages: Vec<RobloxMessage> = serde_json::from_slice(&source)
+                                        .expect("Failed deserializing message from Roblox Studio");
+
+                                    message_tx.send(Message::Messages(messages)).unwrap();
 
                                     *response.body_mut() = Body::from("Got it!");
                                     response

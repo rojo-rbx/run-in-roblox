@@ -13,16 +13,48 @@ end
 local mode = modeValue.Value
 
 local HttpService = game:GetService("HttpService")
+local LogService = game:GetService("LogService")
+local RunService = game:GetService("RunService")
 
 local PORT = {{PORT}}
 local SERVER_URL = ("http://localhost:%d"):format(PORT)
 
-local function postMessage(text)
-	HttpService:PostAsync(SERVER_URL .. "/message", text)
-end
+local queuedMessages = {}
+local timeSinceLastSend = 0
+local messageSendRate = 0.2
 
-HttpService:PostAsync(SERVER_URL .. "/start", "")
+local heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
+	timeSinceLastSend = timeSinceLastSend + dt
 
-require(script.Parent.Main)(postMessage)
+	if timeSinceLastSend >= messageSendRate then
+		local encoded = HttpService:JSONEncode(queuedMessages)
+		queuedMessages = {}
+		timeSinceLastSend = 0
 
-HttpService:PostAsync(SERVER_URL .. "/finish", "")
+		HttpService:PostAsync(SERVER_URL, "/messages", encoded)
+	end
+end)
+
+local logTypeToLevel = {
+	[Enum.MessageType.MessageOutput] = "Output",
+	[Enum.MessageType.MessageInfo] = "Info",
+	[Enum.MessageType.MessageWarning] = "Warning",
+	[Enum.MessageType.MessageError] = "Error",
+}
+
+local logConnection = LogService.MessageOut:Connect(function(body, messageType)
+	table.insert(queuedMessages, {
+		type = "Output",
+		level = logTypeToLevel[messageType] or "Info",
+		body = body,
+	})
+end)
+
+HttpService:PostAsync(SERVER_URL .. "/start", "hi")
+
+require(script.Parent.Main)
+
+HttpService:PostAsync(SERVER_URL .. "/finish", "hi")
+
+heartbeatConnection:Disconnect()
+logConnection:Disconnect()

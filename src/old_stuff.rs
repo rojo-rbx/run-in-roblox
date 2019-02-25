@@ -14,7 +14,7 @@ use tempfile::tempdir;
 
 use crate::{
     roblox_install::RobloxStudio,
-    message_receiver::{Message, MessageReceiver, MessageReceiverOptions},
+    message_receiver::{Message, RobloxMessage, MessageReceiver, MessageReceiverOptions},
 };
 
 const PORT: u16 = 54023;
@@ -88,7 +88,7 @@ pub fn inject_plugin_main(tree: &mut RbxTree) {
     tree.insert_instance(entry_point, root_id);
 }
 
-pub fn run_in_roblox(plugin: &RbxTree) -> Vec<Vec<u8>> {
+pub fn run_in_roblox(plugin: &RbxTree) -> Vec<RobloxMessage> {
     let studio_install = RobloxStudio::locate()
         .expect("Could not find Roblox Studio installation");
 
@@ -142,7 +142,8 @@ pub fn run_in_roblox(plugin: &RbxTree) -> Vec<Vec<u8>> {
         match message {
             Message::Start => {},
             Message::Stop => break,
-            Message::Message(message) => messages.push(message),
+            Message::Messages(mut roblox_messages) => roblox_messages.drain(..)
+                .for_each(|message| messages.push(message)),
         }
     }
 
