@@ -1,10 +1,12 @@
 mod roblox_install;
 mod message_receiver;
-mod old_stuff;
+mod place_runner;
+mod plugin;
+mod place;
 
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{read_to_string},
     path::Path,
     process,
 };
@@ -13,26 +15,18 @@ use rbx_dom_weak::{RbxTree, RbxInstanceProperties};
 use log::error;
 use clap::{App, Arg};
 
-fn run_place(path: &Path, extension: &str) {
-    let mut file = File::open(path)
-        .expect("Couldn't open file");
+use crate::{
+    place_runner::{PlaceRunner, PlaceRunnerOptions, open_rbx_place_file},
+};
 
-    let mut tree = RbxTree::new(RbxInstanceProperties {
-        name: String::from("Place"),
-        class_name: String::from("DataModel"),
-        properties: HashMap::new(),
-    });
-    let root_id = tree.get_root_id();
+const DEFAULT_PORT: u16 = 54023;
+const DEFAULT_TIMEOUT: u16 = 15;
 
-    match extension {
-        "rbxl" => rbx_binary::decode(&mut tree, root_id, &mut file)
-            .expect("Couldn't decode binary place file"),
-        "rbxlx" => rbx_xml::decode(&mut tree, root_id, &mut file)
-            .expect("Couldn't decode XML place file"),
-        _ => unreachable!(),
-    }
+fn run_place(path: &Path, extension: &str, options: PlaceRunnerOptions) {
+    let tree = open_rbx_place_file(path, extension);
 
-    // TODO: Actually use this place
+    let place = PlaceRunner::new(tree, options);
+    place.run();
 }
 
 fn run_model(_path: &Path, _extension: &str) {
@@ -40,9 +34,15 @@ fn run_model(_path: &Path, _extension: &str) {
     process::exit(1);
 }
 
-fn run_script(_path: &Path) {
-    error!("Scripts are not yet supported by run-in-roblox.");
-    process::exit(1);
+fn run_script(options: PlaceRunnerOptions) {
+    let tree = RbxTree::new(RbxInstanceProperties {
+        name: String::from("Place"),
+        class_name: String::from("DataModel"),
+        properties: HashMap::new(),
+    });
+
+    let place = PlaceRunner::new(tree, options);
+    place.run();
 }
 
 fn bad_path(path: &Path) -> ! {
@@ -61,6 +61,9 @@ fn main() {
             .init();
     }
 
+    let default_port = DEFAULT_PORT.to_string();
+    let default_timeout = DEFAULT_TIMEOUT.to_string();
+
     let app = App::new("run-in-roblox")
         .author(env!("CARGO_PKG_AUTHORS"))
         .version(env!("CARGO_PKG_VERSION"))
@@ -69,11 +72,44 @@ fn main() {
         .arg(Arg::with_name("PATH")
             .help("The place, model, or script file to run inside Roblox")
             .takes_value(true)
-            .required(true));
+            .required(true))
+        .arg(Arg::with_name("script")
+            .short("s")
+            .help("The lua script file to be executed in the opened place")
+            .takes_value(true)
+            .required(false)
+            .conflicts_with("execute"))
+        .arg(Arg::with_name("execute")
+            .short("e")
+            .help("The lua string to execute")
+            .takes_value(true)
+            .required(false)
+            .conflicts_with("script"))
+        .arg(Arg::with_name("port")
+            .short("p")
+            .help("The port used by the local server")
+            .takes_value(true)
+            .default_value(&default_port))
+        .arg(Arg::with_name("timeout")
+            .short("t")
+            .help("The maximum time in seconds that the script can run")
+            .takes_value(true)
+            .default_value(&default_timeout));
+
 
     let matches = app.get_matches();
 
     let input = Path::new(matches.value_of("PATH").unwrap());
+
+    let port = match matches.value_of("port") {
+        Some(port) => port.parse::<u16>().expect("port must be an unsigned integer"),
+        None => DEFAULT_PORT,
+    };
+
+    let timeout = match matches.value_of("timeout") {
+        Some(timeout) => timeout.parse::<u16>().expect("timeout must be an unsigned integer"),
+        None => DEFAULT_TIMEOUT,
+    };
 
     let extension = match input.extension() {
         Some(e) => e.to_str().unwrap(),
@@ -81,9 +117,40 @@ fn main() {
     };
 
     match extension {
-        "lua" => run_script(input),
+        "lua" => {
+            if let Some(_) = matches.value_of("script") {
+                panic!("Cannot provide script argument when running a script file (remove `--script LUA_FILE_PATH`)")
+            };
+            if let Some(_) = matches.value_of("execute") {
+                panic!("Cannot provide execute argument when running a script file (remove `--execute LUA_CODE`)")
+            };
+
+            let lua_script = read_to_string(input)
+                    .expect("Something went wrong reading the file");
+
+            run_script(PlaceRunnerOptions {
+                port,
+                timeout,
+                lua_script: lua_script.as_ref(),
+            })
+        },
         "rbxm" | "rbxmx" => run_model(input, extension),
-        "rbxl" | "rbxlx" => run_place(input, extension),
+        "rbxl" | "rbxlx" => {
+            let lua_script = if let Some(script_file_path) = matches.value_of("script") {
+                read_to_string(script_file_path)
+                    .expect("Something went wrong reading the file")
+            } else if let Some(lua_string) = matches.value_of("execute") {
+                lua_string.to_owned()
+            } else {
+                panic!("Lua code not provided (use `--script LUA_FILE_PATH` or `--execute LUA_CODE`)")
+            };
+
+            run_place(input, extension, PlaceRunnerOptions {
+                port,
+                timeout,
+                lua_script: lua_script.as_ref(),
+            })
+        },
         _ => bad_path(input),
     }
 }
