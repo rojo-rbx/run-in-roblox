@@ -53,7 +53,7 @@ impl PlaceRunner {
         let studio_install = RobloxStudio::locate()
             .expect("Could not find Roblox Studio installation");
 
-        let plugin_file_path = studio_install.built_in_plugins_path()
+        let plugin_file_path = studio_install.plugins_path()
             .join("run_in_roblox.rbxmx");
 
         create_run_in_roblox_plugin(&plugin_file_path, options.port, options.timeout, options.lua_script);

@@ -20,16 +20,17 @@ fn base_folder() -> Option<PathBuf> {
 }
 
 pub struct RobloxStudio {
-    folder_path: PathBuf,
+    base_folder: PathBuf,
+    version_folder_path: PathBuf,
 }
 
 impl RobloxStudio {
     pub fn locate() -> io::Result<RobloxStudio> {
-        let mut versions_folder = base_folder().ok_or_else(||
+        let base_folder = base_folder().ok_or_else(||
             io::Error::new(io::ErrorKind::NotFound, "Roblox install not found")
         )?;
 
-        versions_folder.push("Versions");
+        let versions_folder = base_folder.join("Versions");
 
         for entry in fs::read_dir(&versions_folder)? {
             let entry = entry?;
@@ -40,7 +41,8 @@ impl RobloxStudio {
 
                 if maybe_exe_path.is_file() {
                     return Ok(RobloxStudio {
-                        folder_path: path,
+                        base_folder,
+                        version_folder_path: path,
                     })
                 }
             }
@@ -50,10 +52,14 @@ impl RobloxStudio {
     }
 
     pub fn exe_path(&self) -> PathBuf {
-        self.folder_path.join("RobloxStudioBeta.exe")
+        self.version_folder_path.join("RobloxStudioBeta.exe")
     }
 
     pub fn built_in_plugins_path(&self) -> PathBuf {
-        self.folder_path.join("BuiltInPlugins")
+        self.version_folder_path.join("BuiltInPlugins")
+    }
+
+    pub fn plugins_path(&self) -> PathBuf {
+        self.base_folder.join("Plugins")
     }
 }
