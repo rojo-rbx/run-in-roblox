@@ -22,6 +22,7 @@ local SERVER_URL = ("http://localhost:%d"):format(PORT)
 local queuedMessages = {}
 local timeSinceLastSend = 0
 local messageSendRate = 0.2
+local closeDelay = 0.5
 local running = false
 
 local heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
@@ -58,14 +59,15 @@ running = true
 spawn(function()
 	local success, errorMessage = pcall(function()
 		require(script.main)
-		wait(1)
-		running = false
 	end)
 
 	if not success then
 		warn("main encountered an error:")
 		warn(errorMessage)
 	end
+
+	wait(closeDelay)
+	running = false
 end)
 
 local timeout = tick() + {{TIMEOUT}}
