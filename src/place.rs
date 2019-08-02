@@ -25,7 +25,7 @@ impl RunInRbxPlace {
         let root_id = self.tree.get_root_id();
         let top_level_ids = self.tree.get_instance(root_id).unwrap().get_children_ids();
 
-        rbx_xml::encode(&self.tree, top_level_ids, output)
+        rbx_xml::to_writer_default(output, &self.tree, top_level_ids)
     }
 }
 

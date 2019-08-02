@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fs::{self, File},
-    process::{self, Command},
+    process::{self, Command, Stdio},
     str,
     time::Duration,
     path::{PathBuf, Path}
@@ -10,11 +10,11 @@ use std::{
 use rbx_dom_weak::{RbxTree, RbxInstanceProperties};
 use tempfile::{tempdir, TempDir};
 use colored::Colorize;
+use roblox_install::RobloxStudio;
 
 use crate::{
     place::{RunInRbxPlace},
     plugin::{RunInRbxPlugin},
-    roblox_install::{RobloxStudio},
     message_receiver::{Message, OutputLevel, RobloxMessage, MessageReceiver, MessageReceiverOptions},
 };
 
@@ -74,6 +74,8 @@ impl PlaceRunner {
 
         let _studio_process = KillOnDrop(Command::new(&self.studio_exec_path)
             .arg(format!("{}", self.place_file_path.display()))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn()
             .expect("Couldn't start Roblox Studio"));
 
@@ -129,8 +131,10 @@ pub fn open_rbx_place_file(path: &Path, extension: &str) -> RbxTree {
     match extension {
         "rbxl" => rbx_binary::decode(&mut tree, root_id, &mut file)
             .expect("Couldn't decode binary place file"),
-        "rbxlx" => rbx_xml::decode(&mut tree, root_id, &mut file)
-            .expect("Couldn't decode XML place file"),
+        "rbxlx" => {
+            tree = rbx_xml::from_reader_default(file)
+                .expect("Couldn't decode XML place file");
+        },
         _ => unreachable!(),
     }
 

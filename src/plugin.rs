@@ -28,7 +28,7 @@ impl<'a> RunInRbxPlugin<'a> {
         let plugin_folder = self.build_plugin();
         let folder_id = plugin_folder.get_root_id();
 
-        rbx_xml::encode(&plugin_folder, &[folder_id], output)
+        rbx_xml::to_writer_default(output, &plugin_folder, &[folder_id])
     }
 
     pub fn get_port(&self) -> u16 {
@@ -133,7 +133,7 @@ mod test_plugin {
         let plugin_folder = plugin.build_plugin();
         let folder_id = plugin_folder.get_root_id();
 
-        assert_eq!(plugin_folder.descendants(folder_id).count(), 3);
+        assert_eq!(plugin_folder.descendants(folder_id).count(), 2);
 
         let expect_plugin_source = PLUGIN_TEMPLATE
             .replace("{{PORT}}", &port.to_string())
@@ -143,7 +143,6 @@ mod test_plugin {
 
         for descendant in plugin_folder.descendants(folder_id) {
             match descendant.class_name.as_ref() {
-                "Folder" => (),
                 "Script" => {
                     match descendant.properties.get("Source") {
                         Some(RbxValue::String { value }) => assert_eq!(value, &expect_plugin_source),
