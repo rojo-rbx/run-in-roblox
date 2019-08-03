@@ -903,7 +903,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "roblox_install"
 version = "0.1.2"
-source = "git+https://github.com/jeparlefrancais/roblox-install?branch=plugins-macos#42a72bfb052e3fe056cdde3c40229166ca8655bf"
+source = "git+https://github.com/jeparlefrancais/roblox-install?branch=plugins-macos#d8a1d1db2369b5e8ce4fc76c04bee280d4ac7700"
 dependencies = [
  "dirs 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "winreg 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
