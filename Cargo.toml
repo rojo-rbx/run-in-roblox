@@ -11,11 +11,15 @@ env_logger = "0.6.0"
 futures = "0.1.25"
 hyper = "0.12.24"
 log = "0.4.6"
-rbx_binary = "0.3.0"
-rbx_dom_weak = "0.3.0"
-rbx_xml = "0.3.0"
+rbx_binary = "0.4.1"
+rbx_dom_weak = "1.9.0"
+rbx_xml = "0.11.1"
+roblox_install = "0.2.0"
 serde = "1.0.88"
 serde_derive = "1.0.88"
 serde_json = "1.0.38"
 tempfile = "3.0.7"
 colored = "1.8"
+
+[profile.dev]
+opt-level = 1
