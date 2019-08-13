@@ -142,16 +142,12 @@ pub fn open_rbx_place_file(path: &Path, extension: &str) -> RbxTree {
 }
 
 fn create_run_in_roblox_place(place_file_path: &PathBuf, tree: RbxTree) {
-    let place_file = File::create(&place_file_path)
-        .expect("Could not create temporary place file");
-
-    let place_file2 = File::create(Path::new("temp_file.rbxlx"))
+    let place_file = File::create(place_file_path)
         .expect("Could not create temporary place file");
 
     let place = RunInRbxPlace::new(tree);
 
     place.write(&place_file).expect("Could not serialize temporary place file to disk");
-    place.write(&place_file2).expect("Could not serialize temporary place file to disk");
 }
 
 fn create_run_in_roblox_plugin<'a>(plugin_file_path: &PathBuf, port: u16, timeout: u16, lua_script: &'a str) {
