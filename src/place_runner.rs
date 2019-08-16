@@ -9,14 +9,13 @@ use std::{
 };
 
 use rbx_dom_weak::{RbxTree, RbxInstanceProperties};
-use tempfile::tempdir;
-use colored::Colorize;
+use tempfile::{tempdir, TempDir};
 use roblox_install::RobloxStudio;
 
 use crate::{
-    place::RunInRbxPlace,
-    plugin::RunInRbxPlugin,
-    message_receiver::{Message, OutputLevel, RobloxMessage, MessageReceiver, MessageReceiverOptions},
+    place::{RunInRbxPlace},
+    plugin::{RunInRbxPlugin},
+    message_receiver::{Message, RobloxMessage, MessageReceiver, MessageReceiverOptions},
 };
 
 /// A wrapper for process::Child that force-kills the process on drop.
@@ -35,13 +34,12 @@ pub struct PlaceRunnerOptions<'a> {
 }
 
 pub struct PlaceRunner {
+    _work_dir: TempDir,
     place_file_path: PathBuf,
     plugin_file_path: PathBuf,
     studio_exec_path: PathBuf,
     port: u16,
 }
-
-type RobloxMessageChannel = (mpsc::Sender<RobloxMessage>, mpsc::Receiver<RobloxMessage>);
 
 impl PlaceRunner {
     pub fn new<'a>(tree: RbxTree, options: PlaceRunnerOptions) -> PlaceRunner {
@@ -61,6 +59,9 @@ impl PlaceRunner {
         create_run_in_roblox_plugin(&plugin_file_path, options.port, options.timeout, options.lua_script);
 
         PlaceRunner {
+            // Tie the lifetime of this TempDir to our own lifetime, so that it
+            // doesn't get cleaned up until we're dropped
+            _work_dir: work_dir,
             place_file_path,
             plugin_file_path,
             studio_exec_path: studio_install.application_path().to_path_buf(),
@@ -68,7 +69,7 @@ impl PlaceRunner {
         }
     }
 
-    pub fn run(&self, channel: Option<RobloxMessageChannel>) {
+    pub fn run_with_sender(&self, message_processor: mpsc::Sender<Option<RobloxMessage>>) {
         let message_receiver = MessageReceiver::start(MessageReceiverOptions {
             port: self.port,
         });
@@ -80,41 +81,29 @@ impl PlaceRunner {
             .spawn()
             .expect("Couldn't start Roblox Studio"));
 
-        match message_receiver.recv_timeout(Duration::from_secs(10)).expect("Timeout reached") {
+        match message_receiver.recv_timeout(Duration::from_secs(20)).expect("Timeout reached") {
             Message::Start => {},
             _ => panic!("Invalid first message received"),
         }
 
-        while {
+        loop {
             let message = message_receiver.recv();
-
-            self.process_messages(message)
-        } {}
+            match message {
+                Message::Start => {},
+                Message::Stop => {
+                    message_processor.send(None).expect("Could not send stop message");
+                    break;
+                },
+                Message::Messages(roblox_messages) => {
+                    for message in roblox_messages.into_iter() {
+                        message_processor.send(Some(message)).expect("Could not send message");
+                    }
+                }
+            }
+        }
 
         message_receiver.stop();
         let _ignored = fs::remove_file(&self.plugin_file_path);
-    }
-
-    fn process_messages(&self, message: Message) -> bool {
-        match message {
-            Message::Start => true,
-            Message::Stop => false,
-            Message::Messages(mut roblox_messages) => {
-                roblox_messages.drain(..).for_each(|message| {
-                    match message {
-                        RobloxMessage::Output {level, body} => {
-                            println!("{}", match level {
-                                OutputLevel::Print => body.normal(),
-                                OutputLevel::Info => body.cyan(),
-                                OutputLevel::Warning => body.yellow(),
-                                OutputLevel::Error => body.red(),
-                            });
-                        },
-                    }
-                });
-                true
-            },
-        }
     }
 }
 
