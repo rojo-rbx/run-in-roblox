@@ -72,7 +72,7 @@ pub fn run(opts: RunOptions) -> Result<(), Box<dyn Error>> {
     };
 
     let place = PlaceRunner::new(tree, place_runner_opts);
-    place.run();
+    place.run(None);
 
     Ok(())
 }

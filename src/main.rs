@@ -25,7 +25,7 @@ fn run_place(path: &Path, extension: &str, options: PlaceRunnerOptions) {
     let tree = open_rbx_place_file(path, extension);
 
     let place = PlaceRunner::new(tree, options);
-    place.run();
+    place.run(None);
 }
 
 fn run_model(_path: &Path, _extension: &str) {
@@ -41,7 +41,7 @@ fn run_script(options: PlaceRunnerOptions) {
     });
 
     let place = PlaceRunner::new(tree, options);
-    place.run();
+    place.run(None);
 }
 
 fn bad_path(path: &Path) -> ! {

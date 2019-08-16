@@ -4,17 +4,18 @@ use std::{
     process::{self, Command, Stdio},
     str,
     time::Duration,
-    path::{PathBuf, Path}
+    path::{PathBuf, Path},
+    sync::mpsc,
 };
 
 use rbx_dom_weak::{RbxTree, RbxInstanceProperties};
-use tempfile::{tempdir, TempDir};
+use tempfile::tempdir;
 use colored::Colorize;
 use roblox_install::RobloxStudio;
 
 use crate::{
-    place::{RunInRbxPlace},
-    plugin::{RunInRbxPlugin},
+    place::RunInRbxPlace,
+    plugin::RunInRbxPlugin,
     message_receiver::{Message, OutputLevel, RobloxMessage, MessageReceiver, MessageReceiverOptions},
 };
 
@@ -23,7 +24,7 @@ struct KillOnDrop(process::Child);
 
 impl Drop for KillOnDrop {
     fn drop(&mut self) {
-        let _dont_care = self.0.kill();
+        let _ignored = self.0.kill();
     }
 }
 
@@ -34,12 +35,13 @@ pub struct PlaceRunnerOptions<'a> {
 }
 
 pub struct PlaceRunner {
-    work_dir: TempDir,
     place_file_path: PathBuf,
     plugin_file_path: PathBuf,
     studio_exec_path: PathBuf,
     port: u16,
 }
+
+type RobloxMessageChannel = (mpsc::Sender<RobloxMessage>, mpsc::Receiver<RobloxMessage>);
 
 impl PlaceRunner {
     pub fn new<'a>(tree: RbxTree, options: PlaceRunnerOptions) -> PlaceRunner {
@@ -59,15 +61,14 @@ impl PlaceRunner {
         create_run_in_roblox_plugin(&plugin_file_path, options.port, options.timeout, options.lua_script);
 
         PlaceRunner {
-            work_dir,
             place_file_path,
             plugin_file_path,
-            studio_exec_path: studio_install.exe_path(),
+            studio_exec_path: studio_install.application_path().to_path_buf(),
             port: options.port,
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(&self, channel: Option<RobloxMessageChannel>) {
         let message_receiver = MessageReceiver::start(MessageReceiverOptions {
             port: self.port,
         });
@@ -91,7 +92,7 @@ impl PlaceRunner {
         } {}
 
         message_receiver.stop();
-        let _dont_care = fs::remove_file(&self.plugin_file_path);
+        let _ignored = fs::remove_file(&self.plugin_file_path);
     }
 
     fn process_messages(&self, message: Message) -> bool {
