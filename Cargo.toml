@@ -5,6 +5,10 @@ version = "0.1.0"
 authors = ["Lucien Greathouse <me@lpghatguy.com>"]
 edition = "2018"
 
+[lib]
+name = "run_in_roblox"
+path = "src/lib.rs"
+
 [dependencies]
 clap = "2.32.0"
 env_logger = "0.6.0"
