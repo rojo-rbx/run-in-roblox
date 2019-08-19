@@ -2,81 +2,22 @@ mod message_receiver;
 mod place_runner;
 mod plugin;
 mod place;
+mod core;
 
 use std::{
-    collections::HashMap,
     fs::{read_to_string},
     path::Path,
-    process,
-    sync::mpsc,
 };
 
-use rbx_dom_weak::{RbxTree, RbxInstanceProperties};
-use log::error;
 use clap::{App, Arg};
-use colored::Colorize;
 
 use crate::{
-    place_runner::{PlaceRunner, PlaceRunnerOptions, open_rbx_place_file},
-    message_receiver::{RobloxMessage, OutputLevel},
+    place_runner::PlaceRunnerOptions,
+    core::{run_place, run_model, run_script, bad_path},
 };
 
 const DEFAULT_PORT: u16 = 54023;
 const DEFAULT_TIMEOUT: u16 = 15;
-
-fn print_message(message: &RobloxMessage) {
-    match message {
-        RobloxMessage::Output {level, body} => {
-            println!("{}", match level {
-                OutputLevel::Print => body.normal(),
-                OutputLevel::Info => body.cyan(),
-                OutputLevel::Warning => body.yellow(),
-                OutputLevel::Error => body.red(),
-            });
-        },
-    }
-}
-
-fn run_place(path: &Path, extension: &str, options: PlaceRunnerOptions) {
-    let tree = open_rbx_place_file(path, extension);
-
-    let place = PlaceRunner::new(tree, options);
-    let (message_tx, message_rx) = mpsc::channel();
-
-    place.run_with_sender(message_tx);
-
-    while let Some(message) = message_rx.recv().expect("Problem receiving message") {
-        print_message(&message);
-    }
-}
-
-fn run_model(_path: &Path, _extension: &str) {
-    error!("Models are not yet supported by run-in-roblox.");
-    process::exit(1);
-}
-
-fn run_script(options: PlaceRunnerOptions) {
-    let tree = RbxTree::new(RbxInstanceProperties {
-        name: String::from("Place"),
-        class_name: String::from("DataModel"),
-        properties: HashMap::new(),
-    });
-
-    let place = PlaceRunner::new(tree, options);
-    let (message_tx, message_rx) = mpsc::channel();
-
-    place.run_with_sender(message_tx);
-
-    while let Some(message) = message_rx.recv().unwrap() {
-        print_message(&message);
-    }
-}
-
-fn bad_path(path: &Path) -> ! {
-    error!("Type of path {} could not be detected.", path.display());
-    error!("Valid extensions are .lua, .rbxm, .rbxmx, .rbxl, and .rbxlx.");
-    process::exit(1);
-}
 
 fn main() {
     {
