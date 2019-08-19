@@ -7,17 +7,40 @@ mod core;
 use std::{
     fs::{read_to_string},
     path::Path,
+    process,
 };
 
+use log::error;
 use clap::{App, Arg};
+use colored::Colorize;
 
 use crate::{
     place_runner::PlaceRunnerOptions,
-    core::{run_place, run_model, run_script, bad_path},
+    message_receiver::{RobloxMessage, OutputLevel},
+    core::{run_place, run_model, run_script},
 };
 
 const DEFAULT_PORT: u16 = 54023;
 const DEFAULT_TIMEOUT: u16 = 15;
+
+fn print_message(message: &RobloxMessage) {
+    match message {
+        RobloxMessage::Output {level, body} => {
+            println!("{}", match level {
+                OutputLevel::Print => body.normal(),
+                OutputLevel::Info => body.cyan(),
+                OutputLevel::Warning => body.yellow(),
+                OutputLevel::Error => body.red(),
+            });
+        },
+    }
+}
+
+fn bad_path(path: &Path) -> ! {
+    error!("Type of path {} could not be detected.", path.display());
+    error!("Valid extensions are .lua, .rbxm, .rbxmx, .rbxl, and .rbxlx.");
+    process::exit(1);
+}
 
 fn main() {
     {
@@ -84,7 +107,7 @@ fn main() {
         None => bad_path(input),
     };
 
-    match extension {
+    let messages = match extension {
         "lua" => {
             if let Some(_) = matches.value_of("script") {
                 panic!("Cannot provide script argument when running a script file (remove `--script LUA_FILE_PATH`)")
@@ -120,5 +143,9 @@ fn main() {
             })
         },
         _ => bad_path(input),
+    };
+
+    while let Some(message) = messages.recv().expect("Problem receiving message") {
+        print_message(&message);
     }
 }
