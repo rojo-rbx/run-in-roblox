@@ -38,10 +38,10 @@ pub enum RunEnvironment<'a> {
 }
 
 pub struct RunOptions<'a> {
-    env: RunEnvironment<'a>,
-    lua_script: &'a str,
-    port: Option<u16>,
-    timeout: Option<u16>,
+    pub env: RunEnvironment<'a>,
+    pub lua_script: &'a str,
+    pub port: Option<u16>,
+    pub timeout: Option<u16>,
 }
 
 pub fn run(opts: RunOptions) -> Result<Vec<RobloxMessage>, Box<dyn Error>> {
