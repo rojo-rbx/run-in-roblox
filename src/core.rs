@@ -12,6 +12,9 @@ use crate::{
     message_receiver::RobloxMessage,
 };
 
+pub const DEFAULT_PORT: u16 = 54023;
+pub const DEFAULT_TIMEOUT: u16 = 15;
+
 pub fn run_place(
     path: &Path,
     extension: &str,

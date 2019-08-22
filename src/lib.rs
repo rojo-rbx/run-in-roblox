@@ -11,13 +11,10 @@ use std::{
 };
 
 use crate::{
-    core::{run_place, run_script},
+    core::{run_place, run_script, DEFAULT_PORT, DEFAULT_TIMEOUT},
     place_runner::PlaceRunnerOptions,
     message_receiver::RobloxMessage,
 };
-
-const DEFAULT_PORT: u16 = 54023;
-const DEFAULT_TIMEOUT: u16 = 15;
 
 #[derive(Debug)]
 struct BadPathError {

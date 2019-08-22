@@ -17,11 +17,8 @@ use colored::Colorize;
 use crate::{
     place_runner::PlaceRunnerOptions,
     message_receiver::{RobloxMessage, OutputLevel},
-    core::{run_place, run_model, run_script},
+    core::{run_place, run_model, run_script, DEFAULT_PORT, DEFAULT_TIMEOUT},
 };
-
-const DEFAULT_PORT: u16 = 54023;
-const DEFAULT_TIMEOUT: u16 = 15;
 
 fn print_message(message: &RobloxMessage) {
     match message {
