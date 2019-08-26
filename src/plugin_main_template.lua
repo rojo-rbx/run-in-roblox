@@ -1,16 +1,16 @@
-local modeValue = game:FindFirstChild("RUN_IN_ROBLOX_MODE")
+local portValue = game:FindFirstChild("RUN_IN_ROBLOX_PORT")
 
-while modeValue == nil do
+while portValue == nil do
 	game.ChildAdded:Wait()
-	modeValue = game:FindFirstChild("RUN_IN_ROBLOX_MODE")
+	portValue = game:FindFirstChild("RUN_IN_ROBLOX_PORT")
 end
 
-if modeValue.ClassName ~= "StringValue" then
-	warn("run-in-roblox found RUN_IN_ROBLOX_MODE marker, but it was the wrong type.")
+if portValue.ClassName ~= "IntValue" then
+	warn("run-in-roblox found RUN_IN_ROBLOX_PORT marker, but it was the wrong type.")
 	return
 end
 
-local mode = modeValue.Value
+local place_port = portValue.Value
 
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
@@ -18,6 +18,10 @@ local RunService = game:GetService("RunService")
 
 local PORT = {{PORT}}
 local SERVER_URL = ("http://localhost:%d"):format(PORT)
+
+if place_port ~= PORT then
+	return
+end
 
 local queuedMessages = {}
 local timeSinceLastSend = 0

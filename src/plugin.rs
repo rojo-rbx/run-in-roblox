@@ -43,7 +43,7 @@ impl<'a> RunInRbxPlugin<'a> {
             .replace("{{TIMEOUT}}", &self.timeout.to_string());
 
         let plugin_script = RbxInstanceProperties {
-            name: String::from("run-in-roblox-plugin"),
+            name: format!("run-in-roblox-plugin-{}", self.port),
             class_name: String::from("Script"),
             properties: {
                 let mut properties = HashMap::new();

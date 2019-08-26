@@ -12,9 +12,9 @@ pub struct RunInRbxPlace {
 }
 
 impl RunInRbxPlace {
-    pub fn new(mut tree: RbxTree) -> RunInRbxPlace {
+    pub fn new(mut tree: RbxTree, port: u16) -> RunInRbxPlace {
         enable_http(&mut tree);
-        add_plugin_marker(&mut tree);
+        add_plugin_marker(&mut tree, port);
 
         RunInRbxPlace {
             tree
@@ -29,11 +29,14 @@ impl RunInRbxPlace {
     }
 }
 
-fn add_plugin_marker(tree: &mut RbxTree) {
+fn add_plugin_marker(tree: &mut RbxTree, port: u16) {
+    let mut properties = HashMap::new();
+    properties.insert(String::from("Value"), RbxValue::Int32 { value: port as i32 });
+
     let marker = RbxInstanceProperties {
-        name: String::from("RUN_IN_ROBLOX_MODE"),
-        class_name: String::from("StringValue"),
-        properties: HashMap::new(),
+        name: String::from("RUN_IN_ROBLOX_PORT"),
+        class_name: String::from("IntValue"),
+        properties,
     };
 
     let root_id = tree.get_root_id();

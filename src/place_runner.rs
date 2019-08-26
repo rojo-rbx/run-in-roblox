@@ -48,13 +48,13 @@ impl PlaceRunner {
 
         let place_file_path = work_dir.path().join("place.rbxlx");
 
-        create_run_in_roblox_place(&place_file_path, tree);
+        create_run_in_roblox_place(&place_file_path, tree, options.port);
 
         let studio_install = RobloxStudio::locate()
             .expect("Could not find Roblox Studio installation");
 
         let plugin_file_path = studio_install.plugins_path()
-            .join("run_in_roblox.rbxmx");
+            .join(format!("run_in_roblox-{}.rbxmx", options.port));
 
         create_run_in_roblox_plugin(&plugin_file_path, options.port, options.timeout, options.lua_script);
 
@@ -131,11 +131,11 @@ pub fn open_rbx_place_file(path: &Path, extension: &str) -> RbxTree {
     tree
 }
 
-fn create_run_in_roblox_place(place_file_path: &PathBuf, tree: RbxTree) {
+fn create_run_in_roblox_place(place_file_path: &PathBuf, tree: RbxTree, port: u16) {
     let place_file = File::create(place_file_path)
         .expect("Could not create temporary place file");
 
-    let place = RunInRbxPlace::new(tree);
+    let place = RunInRbxPlace::new(tree, port);
 
     place.write(&place_file).expect("Could not serialize temporary place file to disk");
 }
