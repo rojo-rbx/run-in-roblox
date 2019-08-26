@@ -31,18 +31,6 @@ impl<'a> RunInRbxPlugin<'a> {
         rbx_xml::to_writer_default(output, &plugin_folder, &[folder_id])
     }
 
-    pub fn get_port(&self) -> u16 {
-        self.port
-    }
-
-    pub fn get_timeout(&self) -> u16 {
-        self.timeout
-    }
-
-    pub fn get_lua_script(&self) -> &'a str {
-        self.lua_script
-    }
-
     fn build_plugin(&self) -> RbxTree {
         let mut plugin_folder = RbxTree::new(RbxInstanceProperties {
             name: String::from("run-in-roblox-plugin"),
@@ -98,30 +86,6 @@ impl<'a> RunInRbxPlugin<'a> {
 #[cfg(test)]
 mod test_plugin {
     use super::*;
-
-    #[test]
-    fn run_in_rbx_plugin_with_port() {
-        let port = 8080;
-        let plugin = RunInRbxPlugin::new(port, 10, "");
-
-        assert_eq!(plugin.get_port(), port);
-    }
-
-    #[test]
-    fn run_in_rbx_plugin_with_timeout() {
-        let seconds = 100;
-        let plugin = RunInRbxPlugin::new(8080, seconds, "");
-
-        assert_eq!(plugin.get_timeout(), seconds);
-    }
-
-    #[test]
-    fn run_in_rbx_plugin_with_lua_script() {
-        let script = "print('Done')";
-        let plugin = RunInRbxPlugin::new(8080, 10, script);
-
-        assert_eq!(plugin.get_lua_script(), script);
-    }
 
     #[test]
     fn run_in_rbx_plugin_creates_correct_plugin_structure() {
