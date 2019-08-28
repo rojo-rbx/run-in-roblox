@@ -3,9 +3,8 @@ run-in-roblox is a tool to run a place, a model, or an individual script inside 
 
 run-in-roblox pipes output from inside Roblox Studio back to stdout/stderr, which enables traditional automation tools to work alongside Roblox.
 
-# Installation
-
-Use cargo to install the executable with the following command.
+## Installation
+run-in-roblox requires Rust 1.37 or newer. You can use it to install run-in-roblox with:
 
 ```
 cargo install run-in-roblox
