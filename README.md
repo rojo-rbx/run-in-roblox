@@ -1,6 +1,4 @@
 # run-in-roblox
-**Early WIP, nothing interesting here yet.**
-
 run-in-roblox is a tool to run a place, a model, or an individual script inside the local installation of Roblox Studio.
 
 run-in-roblox pipes output from inside Roblox Studio back to stdout/stderr, which enables traditional automation tools to work alongside Roblox.
