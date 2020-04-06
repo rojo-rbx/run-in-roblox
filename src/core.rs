@@ -4,12 +4,12 @@ use std::{
     sync::mpsc::{self, Receiver},
 };
 
-use rbx_dom_weak::{RbxTree, RbxInstanceProperties};
 use log::info;
+use rbx_dom_weak::{RbxInstanceProperties, RbxTree};
 
 use crate::{
-    place_runner::{PlaceRunner, PlaceRunnerOptions, open_rbx_place_file},
     message_receiver::RobloxMessage,
+    place_runner::{open_rbx_place_file, PlaceRunner, PlaceRunnerOptions},
 };
 
 pub const DEFAULT_PORT: u16 = 54023;

@@ -1,19 +1,19 @@
+mod core;
 mod message_receiver;
+mod place;
 mod place_runner;
 mod plugin;
-mod place;
-mod core;
 
 use std::{
+    error::Error,
     fmt,
     path::{Path, PathBuf},
-    error::Error,
 };
 
 use crate::{
     core::{run_place, run_script, DEFAULT_PORT, DEFAULT_TIMEOUT},
-    place_runner::PlaceRunnerOptions,
     message_receiver::RobloxMessage,
+    place_runner::PlaceRunnerOptions,
 };
 
 #[derive(Debug)]
@@ -53,13 +53,15 @@ pub fn run(opts: RunOptions) -> Result<Vec<RobloxMessage>, Box<dyn Error>> {
         RunEnvironment::PlaceFile(path) => {
             let extension = match path.extension() {
                 Some(e) => e.to_str().unwrap(),
-                None => return Err(Box::new(BadPathError {
-                    path: path.to_path_buf(),
-                })),
+                None => {
+                    return Err(Box::new(BadPathError {
+                        path: path.to_path_buf(),
+                    }))
+                }
             };
 
             run_place(path, extension, place_runner_opts)
-        },
+        }
     };
 
     let mut messages = Vec::new();

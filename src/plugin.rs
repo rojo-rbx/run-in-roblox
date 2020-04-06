@@ -1,11 +1,8 @@
-use std::{
-    collections::HashMap,
-    io::{Write},
-};
+use std::{collections::HashMap, io::Write};
 
-use rbx_xml::{EncodeError};
+use rbx_xml::EncodeError;
 
-use rbx_dom_weak::{RbxValue, RbxTree, RbxInstanceProperties};
+use rbx_dom_weak::{RbxInstanceProperties, RbxTree, RbxValue};
 
 static PLUGIN_TEMPLATE: &'static str = include_str!("plugin_main_template.lua");
 
@@ -50,7 +47,9 @@ impl<'a> RunInRbxPlugin<'a> {
 
                 properties.insert(
                     String::from("Source"),
-                    RbxValue::String { value: complete_source },
+                    RbxValue::String {
+                        value: complete_source,
+                    },
                 );
 
                 properties
@@ -107,19 +106,15 @@ mod test_plugin {
 
         for descendant in plugin_folder.descendants(folder_id) {
             match descendant.class_name.as_ref() {
-                "Script" => {
-                    match descendant.properties.get("Source") {
-                        Some(RbxValue::String { value }) => assert_eq!(value, &expect_plugin_source),
-                        _ => panic!("plugin should have a script with source")
-                    }
+                "Script" => match descendant.properties.get("Source") {
+                    Some(RbxValue::String { value }) => assert_eq!(value, &expect_plugin_source),
+                    _ => panic!("plugin should have a script with source"),
                 },
-                "ModuleScript" => {
-                    match descendant.properties.get("Source") {
-                        Some(RbxValue::String { value }) => assert_eq!(value, &expect_main),
-                        _ => panic!("plugin should have the given main source")
-                    }
+                "ModuleScript" => match descendant.properties.get("Source") {
+                    Some(RbxValue::String { value }) => assert_eq!(value, &expect_main),
+                    _ => panic!("plugin should have the given main source"),
                 },
-                _ => panic!("unexpected descendant")
+                _ => panic!("unexpected descendant"),
             }
         }
     }

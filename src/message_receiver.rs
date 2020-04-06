@@ -1,27 +1,9 @@
-use std::{
-    fmt,
-    thread,
-    time::Duration,
-    sync::mpsc,
-};
+use std::{fmt, sync::mpsc, thread, time::Duration};
 
+use futures::{future, stream::Stream, sync::oneshot, Future};
 use serde_derive::Deserialize;
-use futures::{
-    Future,
-    future,
-    sync::oneshot,
-    stream::Stream,
-};
 
-use hyper::{
-    Body,
-    Request,
-    Response,
-    StatusCode,
-    Method,
-    Server,
-    service::service_fn,
-};
+use hyper::{service::service_fn, Body, Method, Request, Response, Server, StatusCode};
 
 type HyperResponse = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
 
@@ -35,21 +17,16 @@ pub enum Message {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
 pub enum RobloxMessage {
-    Output {
-        level: OutputLevel,
-        body: String,
-    },
+    Output { level: OutputLevel, body: String },
 }
 
 impl fmt::Display for RobloxMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RobloxMessage::Output { body, level } => {
-                match level {
-                    OutputLevel::Print => write!(f, "{}", body),
-                    _ => write!(f, "[{}]: {}", level, body),
-                }
-            }
+            RobloxMessage::Output { body, level } => match level {
+                OutputLevel::Print => write!(f, "{}", body),
+                _ => write!(f, "[{}]: {}", level, body),
+            },
         }
     }
 }
@@ -99,37 +76,34 @@ impl MessageReceiver {
                     match (request.method(), request.uri().path()) {
                         (&Method::GET, "/") => {
                             *response.body_mut() = Body::from("Hey there!");
-                        },
+                        }
                         (&Method::POST, "/start") => {
                             message_tx.send(Message::Start).unwrap();
                             *response.body_mut() = Body::from("Started");
-                        },
+                        }
                         (&Method::POST, "/stop") => {
                             message_tx.send(Message::Stop).unwrap();
                             *response.body_mut() = Body::from("Finished");
-                        },
+                        }
                         (&Method::POST, "/messages") => {
                             let message_tx = message_tx.clone();
 
-                            let future = request
-                                .into_body()
-                                .concat2()
-                                .map(move |chunk| {
-                                    let source = chunk.to_vec();
-                                    let messages: Vec<RobloxMessage> = serde_json::from_slice(&source)
-                                        .expect("Failed deserializing message from Roblox Studio");
+                            let future = request.into_body().concat2().map(move |chunk| {
+                                let source = chunk.to_vec();
+                                let messages: Vec<RobloxMessage> = serde_json::from_slice(&source)
+                                    .expect("Failed deserializing message from Roblox Studio");
 
-                                    message_tx.send(Message::Messages(messages)).unwrap();
+                                message_tx.send(Message::Messages(messages)).unwrap();
 
-                                    *response.body_mut() = Body::from("Got it!");
-                                    response
-                                });
+                                *response.body_mut() = Body::from("Got it!");
+                                response
+                            });
 
                             return Box::new(future);
-                        },
+                        }
                         _ => {
                             *response.status_mut() = StatusCode::NOT_FOUND;
-                        },
+                        }
                     }
 
                     Box::new(future::ok(response))
