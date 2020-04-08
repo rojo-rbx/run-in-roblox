@@ -6,21 +6,18 @@ run-in-roblox pipes output from inside Roblox Studio back to stdout/stderr, whic
 ## Installation
 
 ### With [Foreman](https://github.com/rojo-rbx/foreman)
-run-in-roblox can be installed with Foreman, a toolchain manager for Roblox projects:
+run-in-roblox can be installed with Foreman, a toolchain manager for Roblox projects.
 
-```toml
-[tools]
-remodel = { source = "rojo-rbx/remodel", version = "0.6.1" }
-```
+**COMING SOON!**
 
 ### From GitHub Releases
-You can download pre-built binaries from [run-in-roblox's GitHub Releases page](https://github.com/rojo-rbx/remodel/releases).
+You can download pre-built binaries from [run-in-roblox's GitHub Releases page](https://github.com/rojo-rbx/run-in-roblox/releases).
 
 ### From crates.io
 You'll need Rust 1.37.0 or newer.
 
 ```bash
-cargo install remodel
+cargo install run-in-roblox
 ```
 
 ## Usage
