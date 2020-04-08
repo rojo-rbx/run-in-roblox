@@ -1,9 +1,8 @@
 use std::{fmt, sync::mpsc, thread, time::Duration};
 
 use futures::{future, stream::Stream, sync::oneshot, Future};
-use serde_derive::Deserialize;
-
 use hyper::{service::service_fn, Body, Method, Request, Response, Server, StatusCode};
+use serde::Deserialize;
 
 type HyperResponse = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
 

@@ -1,8 +1,7 @@
 use std::{collections::HashMap, io::Write};
 
-use rbx_xml::EncodeError;
-
 use rbx_dom_weak::{RbxInstanceProperties, RbxTree, RbxValue};
+use rbx_xml::EncodeError;
 
 pub struct RunInRbxPlace {
     tree: RbxTree,
