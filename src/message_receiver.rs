@@ -4,7 +4,7 @@ use futures::{future, stream::Stream, sync::oneshot, Future};
 use hyper::{service::service_fn, Body, Method, Request, Response, Server, StatusCode};
 use serde::Deserialize;
 
-type HyperResponse = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
+type HyperResponse = Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send>;
 
 #[derive(Debug, Clone)]
 pub enum Message {
