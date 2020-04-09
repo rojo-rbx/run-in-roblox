@@ -159,13 +159,12 @@ fn main() {
     let mut exit_code = 0;
 
     while let Some(message) = messages.recv().expect("Problem receiving message") {
-        match message {
-            RobloxMessage::Output {
-                level: OutputLevel::Error,
-                ..
-            } => {
-                exit_code = 1;
-            }
+        if let RobloxMessage::Output {
+            level: OutputLevel::Error,
+            ..
+        } = message
+        {
+            exit_code = 1;
         }
 
         print_message(&message);
