@@ -156,7 +156,19 @@ fn main() {
         _ => bad_path(input),
     };
 
+    let mut exit_code = 0;
+
     while let Some(message) = messages.recv().expect("Problem receiving message") {
+        if let RobloxMessage::Output {
+            level: OutputLevel::Error,
+            ..
+        } = message
+        {
+            exit_code = 1;
+        }
+
         print_message(&message);
     }
+
+    process::exit(exit_code);
 }
