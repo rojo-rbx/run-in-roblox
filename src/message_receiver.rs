@@ -1,4 +1,9 @@
-use std::{fmt, sync::mpsc, thread, time::Duration};
+use std::{
+    fmt,
+    sync::{mpsc, Arc},
+    thread,
+    time::Duration,
+};
 
 use futures::{future, stream::Stream, sync::oneshot, Future};
 use hyper::{service::service_fn, Body, Method, Request, Response, Server, StatusCode};
@@ -52,6 +57,7 @@ impl fmt::Display for OutputLevel {
 #[derive(Debug)]
 pub struct MessageReceiverOptions {
     pub port: u16,
+    pub server_id: String,
 }
 
 pub struct MessageReceiver {
@@ -64,17 +70,23 @@ impl MessageReceiver {
         let (message_tx, message_rx) = mpsc::channel();
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
+        let server_id = Arc::new(options.server_id.clone());
+
         thread::spawn(move || {
             let service = move || {
+                let server_id = server_id.clone();
                 let message_tx = message_tx.clone();
 
                 service_fn(move |request: Request<Body>| -> HyperResponse {
+                    let server_id = server_id.clone();
                     let message_tx = message_tx.clone();
                     let mut response = Response::new(Body::empty());
 
+                    log::debug!("Request: {} {}", request.method(), request.uri().path());
+
                     match (request.method(), request.uri().path()) {
                         (&Method::GET, "/") => {
-                            *response.body_mut() = Body::from("Hey there!");
+                            *response.body_mut() = Body::from(server_id.as_str().to_owned());
                         }
                         (&Method::POST, "/start") => {
                             message_tx.send(Message::Start).unwrap();

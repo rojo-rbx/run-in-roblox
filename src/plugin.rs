@@ -21,18 +21,12 @@ impl<'a> RunInRbxPlugin<'a> {
     }
 
     fn build_plugin(&self) -> RbxTree {
-        let mut plugin_folder = RbxTree::new(RbxInstanceProperties {
-            name: String::from("run-in-roblox-plugin"),
-            class_name: String::from("Folder"),
-            properties: HashMap::new(),
-        });
-
         let complete_source = PLUGIN_TEMPLATE
             .replace("{{PORT}}", &self.port.to_string())
             .replace("{{SERVER_ID}}", self.server_id);
 
         let plugin_script = RbxInstanceProperties {
-            name: format!("run-in-roblox-plugin-{}", self.server_id),
+            name: "run-in-roblox-plugin".to_owned(),
             class_name: "Script".to_owned(),
             properties: {
                 let mut properties = HashMap::new();
@@ -48,10 +42,10 @@ impl<'a> RunInRbxPlugin<'a> {
             },
         };
 
-        let main_source = format!("{}\nreturn nil", self.lua_script);
+        let main_source = format!("return function()\n{}\nend", self.lua_script);
 
         let injected_main = RbxInstanceProperties {
-            name: "main".to_owned(),
+            name: "Main".to_owned(),
             class_name: "ModuleScript".to_owned(),
             properties: {
                 let mut properties = HashMap::new();

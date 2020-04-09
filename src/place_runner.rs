@@ -1,20 +1,17 @@
 use std::{
-    collections::HashMap,
-    fs::{self, File},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::{self, Command, Stdio},
-    str,
     sync::mpsc,
     time::Duration,
 };
 
-use rbx_dom_weak::{RbxInstanceProperties, RbxTree};
+use anyhow::{anyhow, bail, Context};
+use fs_err as fs;
+use fs_err::File;
 use roblox_install::RobloxStudio;
-use tempfile::{tempdir, TempDir};
 
 use crate::{
     message_receiver::{Message, MessageReceiver, MessageReceiverOptions, RobloxMessage},
-    place::RunInRbxPlace,
     plugin::RunInRbxPlugin,
 };
 
@@ -27,129 +24,71 @@ impl Drop for KillOnDrop {
     }
 }
 
-pub struct PlaceRunnerOptions<'a> {
-    pub port: u16,
-    pub timeout: u16,
-    pub server_id: &'a str,
-    pub lua_script: &'a str,
-}
-
 pub struct PlaceRunner {
-    _work_dir: TempDir,
-    place_file_path: PathBuf,
-    plugin_file_path: PathBuf,
-    studio_exec_path: PathBuf,
-    port: u16,
+    pub port: u16,
+    pub place_path: PathBuf,
+    pub server_id: String,
+    pub lua_script: String,
 }
 
 impl PlaceRunner {
-    pub fn new<'a>(tree: RbxTree, options: PlaceRunnerOptions) -> PlaceRunner {
-        let work_dir = tempdir().expect("Could not create temporary directory");
-
-        let place_file_path = work_dir.path().join("place.rbxlx");
-
-        create_run_in_roblox_place(&place_file_path, tree, options.port);
-
+    pub fn run(&self, sender: mpsc::Sender<Option<RobloxMessage>>) -> Result<(), anyhow::Error> {
         let studio_install =
-            RobloxStudio::locate().expect("Could not find Roblox Studio installation");
+            RobloxStudio::locate().context("Could not locate a Roblox Studio installation.")?;
 
         let plugin_file_path = studio_install
             .plugins_path()
-            .join(format!("run_in_roblox-{}.rbxmx", options.port));
+            .join(format!("run_in_roblox-{}.rbxmx", self.port));
 
         let plugin = RunInRbxPlugin {
-            port: options.port,
-            server_id: options.server_id,
-            lua_script: options.lua_script,
+            port: self.port,
+            server_id: &self.server_id,
+            lua_script: &self.lua_script,
         };
 
-        let mut plugin_file = File::create(&plugin_file_path).unwrap();
-        plugin.write(plugin_file).unwrap();
+        let plugin_file = File::create(&plugin_file_path)?;
+        plugin.write(plugin_file)?;
 
-        PlaceRunner {
-            // Tie the lifetime of this TempDir to our own lifetime, so that it
-            // doesn't get cleaned up until we're dropped
-            _work_dir: work_dir,
-            place_file_path,
-            plugin_file_path,
-            studio_exec_path: studio_install.application_path().to_path_buf(),
-            port: options.port,
-        }
-    }
-
-    pub fn run_with_sender(&self, message_processor: mpsc::Sender<Option<RobloxMessage>>) {
-        let message_receiver = MessageReceiver::start(MessageReceiverOptions { port: self.port });
+        let message_receiver = MessageReceiver::start(MessageReceiverOptions {
+            port: self.port,
+            server_id: self.server_id.to_owned(),
+        });
 
         let _studio_process = KillOnDrop(
-            Command::new(&self.studio_exec_path)
-                .arg(format!("{}", self.place_file_path.display()))
+            Command::new(studio_install.application_path())
+                .arg(format!("{}", self.place_path.display()))
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
-                .spawn()
-                .expect("Couldn't start Roblox Studio"),
+                .spawn()?,
         );
 
-        match message_receiver
+        let first_message = message_receiver
             .recv_timeout(Duration::from_secs(20))
-            .expect("Timeout reached")
-        {
+            .ok_or_else(|| anyhow!("Timeout reached"))?;
+
+        match first_message {
             Message::Start => {}
-            _ => panic!("Invalid first message received"),
+            _ => bail!("Invalid first message received from Roblox Studio plugin"),
         }
 
         loop {
-            let message = message_receiver.recv();
-            match message {
+            match message_receiver.recv() {
                 Message::Start => {}
                 Message::Stop => {
-                    message_processor
-                        .send(None)
-                        .expect("Could not send stop message");
+                    sender.send(None)?;
                     break;
                 }
                 Message::Messages(roblox_messages) => {
                     for message in roblox_messages.into_iter() {
-                        message_processor
-                            .send(Some(message))
-                            .expect("Could not send message");
+                        sender.send(Some(message))?;
                     }
                 }
             }
         }
 
         message_receiver.stop();
-        let _ignored = fs::remove_file(&self.plugin_file_path);
+        fs::remove_file(&plugin_file_path)?;
+
+        Ok(())
     }
-}
-
-pub fn open_rbx_place_file(path: &Path, extension: &str) -> RbxTree {
-    let mut file = File::open(path).expect("Couldn't open file");
-
-    let mut tree = RbxTree::new(RbxInstanceProperties {
-        name: String::from("Place"),
-        class_name: String::from("DataModel"),
-        properties: HashMap::new(),
-    });
-    let root_id = tree.get_root_id();
-
-    match extension {
-        "rbxl" => rbx_binary::decode(&mut tree, root_id, &mut file)
-            .expect("Couldn't decode binary place file"),
-        "rbxlx" => {
-            tree = rbx_xml::from_reader_default(file).expect("Couldn't decode XML place file");
-        }
-        _ => unreachable!(),
-    }
-
-    tree
-}
-
-fn create_run_in_roblox_place(place_file_path: &PathBuf, tree: RbxTree, port: u16) {
-    let place_file = File::create(place_file_path).expect("Could not create temporary place file");
-
-    let place = RunInRbxPlace::new(tree, port);
-
-    place
-        .write(&place_file)
-        .expect("Could not serialize temporary place file to disk");
 }

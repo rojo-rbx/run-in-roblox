@@ -1,26 +1,18 @@
-mod core;
 mod message_receiver;
-mod place;
 mod place_runner;
 mod plugin;
 
-use std::{
-    path::{Path, PathBuf},
-    process,
-};
+use std::{path::PathBuf, process, sync::mpsc, thread};
 
 use anyhow::anyhow;
-use clap::{App, Arg};
 use colored::Colorize;
 use fs_err as fs;
-use log::error;
 use structopt::StructOpt;
 use tempfile::tempdir;
 
 use crate::{
-    core::{run_model, run_place, run_script, DEFAULT_PORT, DEFAULT_TIMEOUT},
     message_receiver::{OutputLevel, RobloxMessage},
-    place_runner::PlaceRunnerOptions,
+    place_runner::PlaceRunner,
 };
 
 #[derive(Debug, StructOpt)]
@@ -37,17 +29,7 @@ struct Options {
     script_path: PathBuf,
 }
 
-fn main() -> Result<(), anyhow::Error> {
-    let options = Options::from_args();
-
-    {
-        let log_env = env_logger::Env::default().default_filter_or("warn");
-
-        env_logger::Builder::from_env(log_env)
-            .format_timestamp(None)
-            .init();
-    }
-
+fn run(options: Options) -> Result<i32, anyhow::Error> {
     // Create a temp directory to house our place, even if a path is given from
     // the command line. This helps ensure Studio won't hang trying to tell the
     // user that the place is read-only because of a .lock file.
@@ -80,37 +62,59 @@ fn main() -> Result<(), anyhow::Error> {
     // don't match.
     let server_id = format!("run-in-roblox-{:x}", rand::random::<u128>());
 
-    Ok(())
+    let place_runner = PlaceRunner {
+        port: 50312,
+        place_path: temp_place_path.clone(),
+        server_id: server_id.clone(),
+        lua_script: script_contents.clone(),
+    };
 
-    // let mut exit_code = 0;
+    let (sender, receiver) = mpsc::channel();
 
-    // while let Some(message) = messages.recv().expect("Problem receiving message") {
-    //     if let RobloxMessage::Output {
-    //         level: OutputLevel::Error,
-    //         ..
-    //     } = message
-    //     {
-    //         exit_code = 1;
-    //     }
+    thread::spawn(move || {
+        place_runner.run(sender).unwrap();
+    });
 
-    //     print_message(&message);
-    // }
+    let mut exit_code = 0;
 
-    // process::exit(exit_code);
-}
-
-fn print_message(message: &RobloxMessage) {
-    match message {
-        RobloxMessage::Output { level, body } => {
-            println!(
-                "{}",
-                match level {
+    while let Some(message) = receiver.recv()? {
+        match message {
+            RobloxMessage::Output { level, body } => {
+                let colored_body = match level {
                     OutputLevel::Print => body.normal(),
                     OutputLevel::Info => body.cyan(),
                     OutputLevel::Warning => body.yellow(),
                     OutputLevel::Error => body.red(),
+                };
+
+                println!("{}", colored_body);
+
+                if level == OutputLevel::Error {
+                    exit_code = 1;
                 }
-            );
+            }
+        }
+    }
+
+    Ok(exit_code)
+}
+
+fn main() {
+    let options = Options::from_args();
+
+    {
+        let log_env = env_logger::Env::default().default_filter_or("warn");
+
+        env_logger::Builder::from_env(log_env)
+            .format_timestamp(None)
+            .init();
+    }
+
+    match run(options) {
+        Ok(exit_code) => process::exit(exit_code),
+        Err(err) => {
+            log::error!("{:?}", err);
+            process::exit(2);
         }
     }
 }

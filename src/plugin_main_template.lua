@@ -1,7 +1,7 @@
-local PORT = {{PORT}}
-local SERVER_ID = {{SERVER_ID}}
+local PORT = "{{PORT}}"
+local SERVER_ID = "{{SERVER_ID}}"
 
-local SERVER_URL = string.format("http://localhost:%d", PORT)
+local SERVER_URL = string.format("http://localhost:%s", PORT)
 
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
@@ -27,7 +27,7 @@ end
 
 local queuedMessages = {}
 local timeSinceLastSend = 0
-local messageSendRate = 0.2
+local messageSendRate = 0.1
 
 local function flushMessages()
 	if #queuedMessages == 0 then
@@ -66,9 +66,19 @@ end)
 
 HttpService:PostAsync(SERVER_URL .. "/start", "")
 
-local success, message = xpcall(require, debug.traceback, script.Main)
+local loadSuccess, messageOrMain = xpcall(require, debug.traceback, script.Main)
 
-if not success then
+if not loadSuccess then
+	local sacrificialEvent = Instance.new("BindableEvent")
+	sacrificialEvent.Event:Connect(function()
+		error(messageOrMain, 0)
+	end)
+	sacrificialEvent:Fire()
+end
+
+local mainSuccess, message = xpcall(messageOrMain, debug.traceback)
+
+if not mainSuccess then
 	local sacrificialEvent = Instance.new("BindableEvent")
 	sacrificialEvent.Event:Connect(function()
 		error(message, 0)
@@ -76,8 +86,9 @@ if not success then
 	sacrificialEvent:Fire()
 end
 
-stopped = true
-
+-- Wait for any remaining messages to be sent to LogService, then flush them
+-- explicitly.
+wait(2 * messageSendRate)
 heartbeatConnection:Disconnect()
 logConnection:Disconnect()
 
