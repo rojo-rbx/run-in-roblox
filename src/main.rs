@@ -160,7 +160,10 @@ fn main() {
 
     while let Some(message) = messages.recv().expect("Problem receiving message") {
         match message {
-            RobloxMessage::Output { level: OutputLevel::Error, .. } => {
+            RobloxMessage::Output {
+                level: OutputLevel::Error,
+                ..
+            } => {
                 exit_code = 1;
             }
         }
