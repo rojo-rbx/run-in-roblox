@@ -30,6 +30,7 @@ impl Drop for KillOnDrop {
 pub struct PlaceRunnerOptions<'a> {
     pub port: u16,
     pub timeout: u16,
+    pub server_id: &'a str,
     pub lua_script: &'a str,
 }
 
@@ -56,12 +57,14 @@ impl PlaceRunner {
             .plugins_path()
             .join(format!("run_in_roblox-{}.rbxmx", options.port));
 
-        create_run_in_roblox_plugin(
-            &plugin_file_path,
-            options.port,
-            options.timeout,
-            options.lua_script,
-        );
+        let plugin = RunInRbxPlugin {
+            port: options.port,
+            server_id: options.server_id,
+            lua_script: options.lua_script,
+        };
+
+        let mut plugin_file = File::create(&plugin_file_path).unwrap();
+        plugin.write(plugin_file).unwrap();
 
         PlaceRunner {
             // Tie the lifetime of this TempDir to our own lifetime, so that it
@@ -149,20 +152,4 @@ fn create_run_in_roblox_place(place_file_path: &PathBuf, tree: RbxTree, port: u1
     place
         .write(&place_file)
         .expect("Could not serialize temporary place file to disk");
-}
-
-fn create_run_in_roblox_plugin<'a>(
-    plugin_file_path: &PathBuf,
-    port: u16,
-    timeout: u16,
-    lua_script: &'a str,
-) {
-    let plugin = RunInRbxPlugin::new(port, timeout, lua_script);
-
-    let plugin_file =
-        File::create(&plugin_file_path).expect("Could not create temporary plugin file");
-
-    plugin
-        .write(plugin_file)
-        .expect("Could not serialize plugin file to disk");
 }

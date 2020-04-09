@@ -30,10 +30,10 @@ impl fmt::Display for RobloxMessage {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum OutputLevel {
-    Info,
     Print,
+    Info,
     Warning,
     Error,
 }

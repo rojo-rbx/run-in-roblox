@@ -1,43 +1,51 @@
-local portValue = game:FindFirstChild("RUN_IN_ROBLOX_PORT")
+local PORT = {{PORT}}
+local SERVER_ID = {{SERVER_ID}}
 
-while portValue == nil do
-	game.ChildAdded:Wait()
-	portValue = game:FindFirstChild("RUN_IN_ROBLOX_PORT")
-end
-
-if portValue.ClassName ~= "IntValue" then
-	warn("run-in-roblox found RUN_IN_ROBLOX_PORT marker, but it was the wrong type.")
-	return
-end
-
-local place_port = portValue.Value
+local SERVER_URL = string.format("http://localhost:%d", PORT)
 
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 
-local PORT = {{PORT}}
-local SERVER_URL = ("http://localhost:%d"):format(PORT)
+local pingSuccess, remoteServerId = pcall(function()
+	return HttpService:GetAsync(SERVER_URL)
+end)
 
-if place_port ~= PORT then
+-- If there was a transport error, just abort silently.
+--
+-- It's possible that the run-in-roblox plugin is erroneously installed, and we
+-- should minimize our impact to the user.
+if not pingSuccess then
+	return
+end
+
+-- There is a server running on that port, but it isn't the right run-in-roblox
+-- server and might be some other HTTP server.
+if remoteServerId ~= SERVER_ID then
 	return
 end
 
 local queuedMessages = {}
 local timeSinceLastSend = 0
 local messageSendRate = 0.2
-local closeDelay = 0.5
-local running = false
+
+local function flushMessages()
+	if #queuedMessages == 0 then
+		return
+	end
+
+	local encoded = HttpService:JSONEncode(queuedMessages)
+	queuedMessages = {}
+
+	timeSinceLastSend = 0
+	HttpService:PostAsync(SERVER_URL .. "/messages", encoded)
+end
 
 local heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
 	timeSinceLastSend = timeSinceLastSend + dt
 
-	if timeSinceLastSend >= messageSendRate and running then
-		local encoded = HttpService:JSONEncode(queuedMessages)
-		queuedMessages = {}
-		timeSinceLastSend = 0
-
-		HttpService:PostAsync(SERVER_URL .. "/messages", encoded)
+	if timeSinceLastSend >= messageSendRate then
+		flushMessages()
 	end
 end)
 
@@ -58,36 +66,21 @@ end)
 
 HttpService:PostAsync(SERVER_URL .. "/start", "")
 
-running = true
-
-spawn(function()
-	local success, errorMessage = pcall(function()
-		require(script.main)
-	end)
-
-	if not success then
-		warn("main encountered an error:")
-		warn(errorMessage)
-	end
-
-	wait(closeDelay)
-	running = false
-end)
-
-local timeout = tick() + {{TIMEOUT}}
-
-while running and tick() < timeout do
-	wait(1)
-end
-
-local success, errorMessage = pcall(function()
-	HttpService:PostAsync(SERVER_URL .. "/stop", "")
-end)
+local success, message = xpcall(require, debug.traceback, script.Main)
 
 if not success then
-	warn("Could not send POST request to stop")
-	warn(errorMessage)
+	local sacrificialEvent = Instance.new("BindableEvent")
+	sacrificialEvent.Event:Connect(function()
+		error(message, 0)
+	end)
+	sacrificialEvent:Fire()
 end
+
+stopped = true
 
 heartbeatConnection:Disconnect()
 logConnection:Disconnect()
+
+flushMessages()
+
+HttpService:PostAsync(SERVER_URL .. "/stop", "")
