@@ -1,5 +1,4 @@
 use std::{
-    fmt,
     sync::{mpsc, Arc},
     thread,
     time::Duration,
@@ -24,34 +23,12 @@ pub enum RobloxMessage {
     Output { level: OutputLevel, body: String },
 }
 
-impl fmt::Display for RobloxMessage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RobloxMessage::Output { body, level } => match level {
-                OutputLevel::Print => write!(f, "{}", body),
-                _ => write!(f, "[{}]: {}", level, body),
-            },
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum OutputLevel {
     Print,
     Info,
     Warning,
     Error,
-}
-
-impl fmt::Display for OutputLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            OutputLevel::Print => write!(f, "PRINT"),
-            OutputLevel::Info => write!(f, "INFO"),
-            OutputLevel::Warning => write!(f, "WARN"),
-            OutputLevel::Error => write!(f, "ERROR"),
-        }
-    }
 }
 
 #[derive(Debug)]
