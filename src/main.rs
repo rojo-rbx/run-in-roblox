@@ -1,44 +1,107 @@
-mod core;
 mod message_receiver;
-mod place;
 mod place_runner;
 mod plugin;
 
-use std::{fs::read_to_string, path::Path, process};
+use std::{path::PathBuf, process, sync::mpsc, thread};
 
-use clap::{App, Arg};
+use anyhow::anyhow;
 use colored::Colorize;
-use log::error;
+use fs_err as fs;
+use structopt::StructOpt;
+use tempfile::tempdir;
 
 use crate::{
-    core::{run_model, run_place, run_script, DEFAULT_PORT, DEFAULT_TIMEOUT},
     message_receiver::{OutputLevel, RobloxMessage},
-    place_runner::PlaceRunnerOptions,
+    place_runner::PlaceRunner,
 };
 
-fn print_message(message: &RobloxMessage) {
-    match message {
-        RobloxMessage::Output { level, body } => {
-            println!(
-                "{}",
-                match level {
+#[derive(Debug, StructOpt)]
+struct Options {
+    /// A path to the place file to open in Roblox Studio. If not specified, an
+    /// empty place file is used.
+    #[structopt(long("place"))]
+    place_path: Option<PathBuf>,
+
+    /// A path to the script to run in Roblox Studio.
+    ///
+    /// The script will be run at plugin-level security.
+    #[structopt(long("script"))]
+    script_path: PathBuf,
+}
+
+fn run(options: Options) -> Result<i32, anyhow::Error> {
+    // Create a temp directory to house our place, even if a path is given from
+    // the command line. This helps ensure Studio won't hang trying to tell the
+    // user that the place is read-only because of a .lock file.
+    let temp_place_folder = tempdir()?;
+    let temp_place_path;
+
+    match &options.place_path {
+        Some(place_path) => {
+            let extension = place_path
+                .extension()
+                .ok_or_else(|| anyhow!("Place file did not have a file extension"))?
+                .to_str()
+                .ok_or_else(|| anyhow!("Place file extension had invalid Unicode"))?;
+
+            temp_place_path = temp_place_folder
+                .path()
+                .join(format!("run-in-roblox-place.{}", extension));
+
+            fs::copy(place_path, &temp_place_path)?;
+        }
+        None => {
+            unimplemented!("run-in-roblox with no place argument");
+        }
+    }
+
+    let script_contents = fs::read_to_string(&options.script_path)?;
+
+    // Generate a random, unique ID for this session. The plugin we inject will
+    // compare this value with the one reported by the server and abort if they
+    // don't match.
+    let server_id = format!("run-in-roblox-{:x}", rand::random::<u128>());
+
+    let place_runner = PlaceRunner {
+        port: 50312,
+        place_path: temp_place_path.clone(),
+        server_id: server_id.clone(),
+        lua_script: script_contents.clone(),
+    };
+
+    let (sender, receiver) = mpsc::channel();
+
+    thread::spawn(move || {
+        place_runner.run(sender).unwrap();
+    });
+
+    let mut exit_code = 0;
+
+    while let Some(message) = receiver.recv()? {
+        match message {
+            RobloxMessage::Output { level, body } => {
+                let colored_body = match level {
                     OutputLevel::Print => body.normal(),
                     OutputLevel::Info => body.cyan(),
                     OutputLevel::Warning => body.yellow(),
                     OutputLevel::Error => body.red(),
+                };
+
+                println!("{}", colored_body);
+
+                if level == OutputLevel::Error {
+                    exit_code = 1;
                 }
-            );
+            }
         }
     }
-}
 
-fn bad_path(path: &Path) -> ! {
-    error!("Type of path {} could not be detected.", path.display());
-    error!("Valid extensions are .lua, .rbxm, .rbxmx, .rbxl, and .rbxlx.");
-    process::exit(1);
+    Ok(exit_code)
 }
 
 fn main() {
+    let options = Options::from_args();
+
     {
         let log_env = env_logger::Env::default().default_filter_or("warn");
 
@@ -47,128 +110,11 @@ fn main() {
             .init();
     }
 
-    let default_port = DEFAULT_PORT.to_string();
-    let default_timeout = DEFAULT_TIMEOUT.to_string();
-
-    let app = App::new("run-in-roblox")
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .about(env!("CARGO_PKG_DESCRIPTION"))
-        .arg(
-            Arg::with_name("PATH")
-                .help("The place, model, or script file to run inside Roblox")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name("script")
-                .short("s")
-                .help("The lua script file to be executed in the opened place")
-                .takes_value(true)
-                .required(false)
-                .conflicts_with("execute"),
-        )
-        .arg(
-            Arg::with_name("execute")
-                .short("e")
-                .help("The lua string to execute")
-                .takes_value(true)
-                .required(false)
-                .conflicts_with("script"),
-        )
-        .arg(
-            Arg::with_name("port")
-                .short("p")
-                .help("The port used by the local server")
-                .takes_value(true)
-                .default_value(&default_port),
-        )
-        .arg(
-            Arg::with_name("timeout")
-                .short("t")
-                .help("The maximum time in seconds that the script can run")
-                .takes_value(true)
-                .default_value(&default_timeout),
-        );
-
-    let matches = app.get_matches();
-
-    let input = Path::new(matches.value_of("PATH").unwrap());
-
-    let port = match matches.value_of("port") {
-        Some(port) => port
-            .parse::<u16>()
-            .expect("port must be an unsigned integer"),
-        None => DEFAULT_PORT,
-    };
-
-    let timeout = match matches.value_of("timeout") {
-        Some(timeout) => timeout
-            .parse::<u16>()
-            .expect("timeout must be an unsigned integer"),
-        None => DEFAULT_TIMEOUT,
-    };
-
-    let extension = match input.extension() {
-        Some(e) => e.to_str().unwrap(),
-        None => bad_path(input),
-    };
-
-    let messages = match extension {
-        "lua" => {
-            if let Some(_) = matches.value_of("script") {
-                panic!("Cannot provide script argument when running a script file (remove `--script LUA_FILE_PATH`)")
-            };
-            if let Some(_) = matches.value_of("execute") {
-                panic!("Cannot provide execute argument when running a script file (remove `--execute LUA_CODE`)")
-            };
-
-            let lua_script = read_to_string(input).expect("Something went wrong reading the file");
-
-            run_script(PlaceRunnerOptions {
-                port,
-                timeout,
-                lua_script: lua_script.as_ref(),
-            })
+    match run(options) {
+        Ok(exit_code) => process::exit(exit_code),
+        Err(err) => {
+            log::error!("{:?}", err);
+            process::exit(2);
         }
-        "rbxm" | "rbxmx" => run_model(input, extension),
-        "rbxl" | "rbxlx" => {
-            let lua_script = if let Some(script_file_path) = matches.value_of("script") {
-                read_to_string(script_file_path).expect("Something went wrong reading the file")
-            } else if let Some(lua_string) = matches.value_of("execute") {
-                lua_string.to_owned()
-            } else {
-                panic!(
-                    "Lua code not provided (use `--script LUA_FILE_PATH` or `--execute LUA_CODE`)"
-                )
-            };
-
-            run_place(
-                input,
-                extension,
-                PlaceRunnerOptions {
-                    port,
-                    timeout,
-                    lua_script: lua_script.as_ref(),
-                },
-            )
-        }
-        _ => bad_path(input),
-    };
-
-    let mut exit_code = 0;
-
-    while let Some(message) = messages.recv().expect("Problem receiving message") {
-        if let RobloxMessage::Output {
-            level: OutputLevel::Error,
-            ..
-        } = message
-        {
-            exit_code = 1;
-        }
-
-        print_message(&message);
     }
-
-    process::exit(exit_code);
 }

@@ -1,21 +1,6 @@
 {
-	"name": "run-in-roblox demo",
-	"tree": {
-		"$className": "DataModel",
-		"ReplicatedStorage": {
-			"$className": "ReplicatedStorage",
-			"src": {
-				"$path": "src"
-			}
-		},
-		"HttpService": {
-			"$className": "HttpService",
-			"$properties": {
-				"HttpEnabled": {
-					"Type": "Bool",
-					"Value": true
-				}
-			}
-		}
-	}
+  "name": "run-in-roblox demo",
+  "tree": {
+    "$className": "DataModel"
+  }
 }

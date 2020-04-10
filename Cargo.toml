@@ -8,25 +8,25 @@ repository = "https://github.com/rojo-rbx/run-in-roblox"
 license = "MIT"
 readme = "README.md"
 
-[lib]
-name = "run_in_roblox"
-path = "src/lib.rs"
-
 [[bin]]
 name = "run-in-roblox"
 path = "src/main.rs"
 
 [dependencies]
-clap = "2.33.0"
+anyhow = "1.0.28"
 colored = "1.9.3"
 env_logger = "0.7.1"
+fs-err = "2.3.0"
 futures = "0.1.25"
 hyper = "0.12.35"
 log = "0.4.8"
+rand = "0.7.3"
 rbx_binary = "0.5.0"
 rbx_dom_weak = "1.10.1"
 rbx_xml = "0.11.4"
 roblox_install = "0.2.2"
 serde = { version = "1.0.106", features = ["derive"] }
 serde_json = "1.0.51"
+structopt = "0.3.13"
 tempfile = "3.1.0"
+thiserror = "1.0.14"
