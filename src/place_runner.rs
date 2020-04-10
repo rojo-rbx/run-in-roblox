@@ -63,8 +63,10 @@ impl PlaceRunner {
         );
 
         let first_message = message_receiver
-            .recv_timeout(Duration::from_secs(20))
-            .ok_or_else(|| anyhow!("Timeout reached"))?;
+            .recv_timeout(Duration::from_secs(60))
+            .ok_or_else(|| {
+                anyhow!("Timeout reached while waiting for Roblox Studio to come online")
+            })?;
 
         match first_message {
             Message::Start => {}
