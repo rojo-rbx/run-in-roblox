@@ -82,7 +82,6 @@ fn run(options: Options) -> Result<i32, anyhow::Error> {
             RobloxMessage::Output { level, body } => {
                 let colored_body = match level {
                     OutputLevel::Print => body.normal(),
-                    OutputLevel::Info => body.cyan(),
                     OutputLevel::Warning => body.yellow(),
                     OutputLevel::Error => body.red(),
                 };
