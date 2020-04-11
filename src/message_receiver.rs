@@ -26,7 +26,6 @@ pub enum RobloxMessage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum OutputLevel {
     Print,
-    Info,
     Warning,
     Error,
 }
