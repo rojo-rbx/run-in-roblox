@@ -4,12 +4,14 @@ local SERVER_ID = "{{SERVER_ID}}"
 local SERVER_URL = string.format("http://localhost:%s", PORT)
 
 local HttpService = game:GetService("HttpService")
-local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 
-local pingSuccess, remoteServerId = pcall(function()
-	return HttpService:GetAsync(SERVER_URL)
-end)
+local pingSuccess, remoteServerId =
+	pcall(
+	function()
+		return HttpService:GetAsync(SERVER_URL)
+	end
+)
 
 -- If there was a transport error, just abort silently.
 --
@@ -41,57 +43,84 @@ local function flushMessages()
 	HttpService:PostAsync(SERVER_URL .. "/messages", encoded)
 end
 
-local heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
-	timeSinceLastSend = timeSinceLastSend + dt
+local function logMessage(body, level)
+	table.insert(
+		queuedMessages,
+		{
+			type = "Output",
+			level = level,
+			body = body
+		}
+	)
+end
 
-	if timeSinceLastSend >= messageSendRate then
-		flushMessages()
+local function formatMessageBody(...)
+	local arg = {...}
+
+	local body = ""
+
+	for index, value in ipairs(arg) do
+		body = body .. tostring(value)
+		if index ~= #arg then
+			body = body .. " "
+		end
 	end
-end)
 
-local logTypeToLevel = {
-	[Enum.MessageType.MessageOutput] = "Print",
-	[Enum.MessageType.MessageInfo] = "Info",
-	[Enum.MessageType.MessageWarning] = "Warning",
-	[Enum.MessageType.MessageError] = "Error",
-}
+	return body
+end
 
-local logConnection = LogService.MessageOut:Connect(function(body, messageType)
-	table.insert(queuedMessages, {
-		type = "Output",
-		level = logTypeToLevel[messageType] or "Info",
-		body = body,
-	})
-end)
+local function setupEnv(mainFunc)
+	local currentEnv = getfenv(mainFunc)
+
+	-- We aren't listening to LogService because it could contain logs from elsewhere.
+	-- Instead, we're stubbing print and warn and catching errors in runScript()
+
+	local newEnv = {
+		print = function(...)
+			local body = formatMessageBody(...)
+			logMessage(body, "Print")
+		end,
+		warn = function(...)
+			local body = formatMessageBody(...)
+			logMessage(body, "Warning")
+		end
+	}
+
+	setmetatable(newEnv, {__index = currentEnv})
+
+	return setfenv(mainFunc, newEnv)
+end
+
+local function runScript()
+	local requireSuccess, requireResult = xpcall(require, debug.traceback, script.Main)
+
+	if requireSuccess then
+		local sandboxedMainFunc = setupEnv(requireResult)
+		local runSuccess, runResult = xpcall(sandboxedMainFunc, debug.traceback)
+
+		if not runSuccess then
+			logMessage(runResult, "Error")
+		end
+	else
+		logMessage(requireResult, "Error")
+	end
+end
+
+local heartbeatConnection =
+	RunService.Heartbeat:Connect(
+	function(dt)
+		timeSinceLastSend = timeSinceLastSend + dt
+
+		if timeSinceLastSend >= messageSendRate then
+			flushMessages()
+		end
+	end
+)
 
 HttpService:PostAsync(SERVER_URL .. "/start", "")
 
-local loadSuccess, messageOrMain = xpcall(require, debug.traceback, script.Main)
-
-if not loadSuccess then
-	local sacrificialEvent = Instance.new("BindableEvent")
-	sacrificialEvent.Event:Connect(function()
-		error(messageOrMain, 0)
-	end)
-	sacrificialEvent:Fire()
-end
-
-local mainSuccess, message = xpcall(messageOrMain, debug.traceback)
-
-if not mainSuccess then
-	local sacrificialEvent = Instance.new("BindableEvent")
-	sacrificialEvent.Event:Connect(function()
-		error(message, 0)
-	end)
-	sacrificialEvent:Fire()
-end
-
--- Wait for any remaining messages to be sent to LogService, then flush them
--- explicitly.
-wait(2 * messageSendRate)
+runScript()
 heartbeatConnection:Disconnect()
-logConnection:Disconnect()
-
 flushMessages()
 
 HttpService:PostAsync(SERVER_URL .. "/stop", "")
