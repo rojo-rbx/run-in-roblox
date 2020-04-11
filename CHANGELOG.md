@@ -6,6 +6,7 @@
 	* Scripts are now passed via `--script`. A script is now always required.
 * Added support for any place file, not just ones that rbx-dom supports.
 * Fixed many panics, replacing them with graceful error messages.
+* Switched from LogService capture to injection of stubs for print & warn, and use of xpcall to capture relevant logs only
 
 ## 0.2.0
 * **TODO**
