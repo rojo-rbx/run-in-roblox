@@ -1,7 +1,7 @@
 [package]
 name = "run-in-roblox"
 description = "Run stuff inside Roblox Studio"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Lucien Greathouse <me@lpghatguy.com>"]
 edition = "2018"
 repository = "https://github.com/rojo-rbx/run-in-roblox"

@@ -3,4 +3,4 @@
 set -e
 
 rojo build -o Place.rbxlx
-run-in-roblox Place.rbxlx
+run-in-roblox --place Place.rbxlx --script hello.lua

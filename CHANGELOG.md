@@ -1,6 +1,8 @@
 # run-in-roblox Changelog
 
 ## Unreleased Changes
+
+## 0.3.0 (2020-07-19)
 * **Breaking**: Reworked command line interface from the ground-up.
 	* Places are now passed with `--place`.
 	* Scripts are now passed via `--script`. A script is now always required.

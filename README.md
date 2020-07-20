@@ -5,13 +5,16 @@ run-in-roblox pipes output from inside Roblox Studio back to stdout/stderr, whic
 
 ## Installation
 
+### From GitHub Releases
+You can download pre-built binaries from [run-in-roblox's GitHub Releases page](https://github.com/rojo-rbx/run-in-roblox/releases).
+
 ### With [Foreman](https://github.com/rojo-rbx/foreman)
 run-in-roblox can be installed with Foreman, a toolchain manager for Roblox projects.
 
-**COMING SOON!**
-
-### From GitHub Releases
-You can download pre-built binaries from [run-in-roblox's GitHub Releases page](https://github.com/rojo-rbx/run-in-roblox/releases).
+```bash
+[tools]
+run-in-roblox = { source = "rojo-rbx/run-in-roblox", version = "0.3.0" }
+```
 
 ### From crates.io
 You'll need Rust 1.37.0 or newer.
@@ -24,10 +27,12 @@ cargo install run-in-roblox
 The recommended way to use `run-in-roblox` is with a place file and a script to run:
 
 ```bash
-run-in-roblox MyPlace.rbxlx --script starter-script.lua
+run-in-roblox --place MyPlace.rbxlx --script starter-script.lua
 ```
 
 This will open `MyPlace.rbxlx` in Roblox Studio, run `starter-script.lua` until it completes, and then exit.
+
+`--place` is optional, but `--script` is required.
 
 ## License
 run-in-roblox is available under the terms of the MIT License. See [LICENSE.txt](LICENSE.txt) or <https://opensource.org/licenses/MIT> for details.
