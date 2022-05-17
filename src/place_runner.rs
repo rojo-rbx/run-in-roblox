@@ -26,8 +26,8 @@ impl Drop for KillOnDrop {
 
 pub struct PlaceRunner {
     pub port: u16,
-    pub place_path: PathBuf,
     pub server_id: String,
+    pub args: Vec<String>,
     pub lua_script: String,
 }
 
@@ -56,7 +56,7 @@ impl PlaceRunner {
 
         let _studio_process = KillOnDrop(
             Command::new(studio_install.application_path())
-                .arg(format!("{}", self.place_path.display()))
+                .args(&self.args)
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()?,
