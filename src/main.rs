@@ -24,7 +24,7 @@ struct Options {
 
     /// The universe of the place id to open in Roblox Studio. If not specified,
     /// the place-id will not be used
-    #[structopt(long("universe"))]
+    #[structopt(long("universe-id"))]
     universe_id: Option<u64>,
 
     /// The place id to open in Roblox Studio. If not specified, the place-id
@@ -65,26 +65,41 @@ fn run(options: Options) -> Result<i32, anyhow::Error> {
             params.push(format!("{}", temp_place_path.display()));
         }
         None => {
+            // Default baseplate place: https://www.roblox.com/games/95206881/Baseplate
+            let mut place_id = "95206881".to_string();
+            let mut universe_id = Some("28220420".to_string());
+
             // Fall back to testing universe and place-id
             // If we have both a universe and place id, we need to pass them to Studio
             match (&options.universe_id, &options.place_id) {
-                (Some(universe_id), Some(place_id)) => {
-                    params.extend_from_slice(&vec![
-                        // This tells studio to open the place
-                        "-task".to_string(),
-                        "EditPlace".to_string(),
-                        // The universe to open
-                        "-universeId".to_string(),
-                        universe_id.to_string(),
-                        // The place to open
-                        "-placeId".to_string(),
-                        place_id.to_string(),
-                    ]);
-                }
-                _ => {
-                    unimplemented!("run-in-roblox must have a place path or universe and place id");
-                }
+                (Some(input_universe_id), Some(input_place_id)) => {
+                    place_id = format!("{}", input_place_id);
+                    universe_id = Some(format!("{}", input_universe_id));
+                },
+                (None, Some(input_place_id)) => {
+                    place_id = format!("{}", input_place_id);
+                    universe_id = None;
+                },
+                (Some(_), None) => {
+                    unimplemented!("You must specify a place-id if you specify a universe-id");
+                },
+                _ => {}
             };
+
+            params.extend_from_slice(&vec![
+                // This tells studio to open the place
+                "-task".to_string(),
+                "EditPlace".to_string(),
+                "-placeId".to_string(),
+                place_id,
+            ]);
+
+            if let Some(universe_id) = universe_id {
+                params.extend_from_slice(&vec![
+                    "-universeId".to_string(),
+                    universe_id,
+                ]);
+            }
         }
     }
 
