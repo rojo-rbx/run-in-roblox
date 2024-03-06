@@ -26,7 +26,7 @@ struct Options {
     ///
     /// The script will be run at plugin-level security.
     #[structopt(long("script"))]
-    script_path: PathBuf,
+    script_path: Option<PathBuf>,
 
     #[structopt(long("port"))]
     port: Option<u16>,
@@ -68,7 +68,18 @@ fn run(options: Options) -> Result<i32, anyhow::Error> {
         }
     }
 
-    let script_contents = fs::read_to_string(&options.script_path)?;
+    let script_contents: String;
+
+    match &options.script_path {
+        Some(script_path) => {
+            script_contents = fs::read_to_string(script_path)?;
+        },
+        _ => {
+            script_contents = String::new();
+        }
+    }
+
+    
 
     // Generate a random, unique ID for this session. The plugin we inject will
     // compare this value with the one reported by the server and abort if they
