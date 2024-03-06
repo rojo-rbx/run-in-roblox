@@ -26,7 +26,10 @@ struct Options {
     ///
     /// The script will be run at plugin-level security.
     #[structopt(long("script"))]
-    script_path: PathBuf,
+    script_path: Option<PathBuf>,
+
+    #[structopt(long("port"))]
+    port: Option<u16>,
 }
 
 fn run(options: Options) -> Result<i32, anyhow::Error> {
@@ -35,6 +38,7 @@ fn run(options: Options) -> Result<i32, anyhow::Error> {
     // user that the place is read-only because of a .lock file.
     let temp_place_folder = tempdir()?;
     let temp_place_path;
+    let port_num: u16;
 
     match &options.place_path {
         Some(place_path) => {
@@ -55,7 +59,27 @@ fn run(options: Options) -> Result<i32, anyhow::Error> {
         }
     }
 
-    let script_contents = fs::read_to_string(&options.script_path)?;
+    match &options.port {
+        Some(port) => {
+            port_num = *port;
+        },
+        _ => {
+            port_num = 50312;
+        }
+    }
+
+    let script_contents: String;
+
+    match &options.script_path {
+        Some(script_path) => {
+            script_contents = fs::read_to_string(script_path)?;
+        },
+        _ => {
+            script_contents = String::new();
+        }
+    }
+
+    
 
     // Generate a random, unique ID for this session. The plugin we inject will
     // compare this value with the one reported by the server and abort if they
@@ -63,7 +87,7 @@ fn run(options: Options) -> Result<i32, anyhow::Error> {
     let server_id = format!("run-in-roblox-{:x}", rand::random::<u128>());
 
     let place_runner = PlaceRunner {
-        port: 50312,
+        port: port_num,
         place_path: temp_place_path.clone(),
         server_id: server_id.clone(),
         lua_script: script_contents.clone(),
